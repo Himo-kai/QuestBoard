@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: 'QuestBoard'
+    orgId: 1
+    folder: 'QuestBoard'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards

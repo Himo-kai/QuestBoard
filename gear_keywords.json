@@ -1,0 +1,111 @@
+{
+    "tools": {
+        "common": [
+            "tools",
+            "equipment",
+            "supplies",
+            "materials",
+            "gear",
+            "kit",
+            "stuff",
+            "items",
+            "necessities",
+            "essentials"
+        ],
+        "specific": {
+            "hand_tools": [
+                "wrench",
+                "screwdriver",
+                "hammer",
+                "pliers",
+                "pliers",
+                "wrench",
+                "screwdriver",
+                "hammer",
+                "pliers",
+                "pliers",
+                "wrench",
+                "screwdriver",
+                "hammer",
+                "pliers"
+            ],
+            "power_tools": [
+                "drill",
+                "saw",
+                "sander",
+                "grinder",
+                "nailgun",
+                "impact driver",
+                "circular saw",
+                "reciprocating saw"
+            ],
+            "safety_gear": [
+                "gloves",
+                "goggles",
+                "safety glasses",
+                "ear protection",
+                "hard hat",
+                "safety vest",
+                "work boots"
+            ]
+        }
+    },
+    "vehicles": {
+        "common": [
+            "vehicle",
+            "car",
+            "truck",
+            "van",
+            "transport",
+            "pickup",
+            "service vehicle"
+        ],
+        "specific": {
+            "pickup": [
+                "pickup",
+                "truck",
+                "pickup truck",
+                "service truck",
+                "utility truck"
+            ],
+            "van": [
+                "van",
+                "cargo van",
+                "work van",
+                "utility van"
+            ],
+            "specialized": [
+                "flatbed",
+                "box truck",
+                "dump truck",
+                "service van"
+            ]
+        }
+    },
+    "labor": {
+        "common": [
+            "labor",
+            "work",
+            "help",
+            "assistance",
+            "support",
+            "muscle",
+            "hands"
+        ],
+        "specific": {
+            "skilled": [
+                "professional",
+                "expert",
+                "specialist",
+                "technician",
+                "craftsman"
+            ],
+            "unskilled": [
+                "general labor",
+                "manual labor",
+                "day labor",
+                "helper"
+            ]
+        }
+    }
+}

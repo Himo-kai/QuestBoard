@@ -1,0 +1,91 @@
+# Gear Keywords Configuration
+# This file contains mappings between gear types and their associated keywords.
+# Each gear type has a description and a list of keywords that indicate its usage.
+
+# Basic Tools - Common tools used in everyday tasks
+drill:
+  description: "Power tool for drilling holes and driving screws"
+  keywords: 
+    - "install"
+    - "screw"
+    - "mount"
+    - "drill"
+    - "anchor"
+    - "bolt"
+
+ladder:
+  description: "Equipment for reaching high places"
+  keywords:
+    - "high"
+    - "ceiling"
+    - "light"
+    - "sign"
+    - "gutter"
+
+# Furniture and Moving Tools
+dolly:
+  description: "Cart for moving heavy items"
+  keywords:
+    - "move"
+    - "heavy"
+    - "appliance"
+    - "furniture"
+
+# Automotive and Mechanical Tools
+ratchet_set:
+  description: "Set of wrenches for automotive work"
+  keywords:
+    - "mechanic"
+    - "car"
+    - "vehicle"
+    - "engine"
+
+gloves:
+  description: "Protective gloves for various tasks"
+  keywords:
+    - "trash"
+    - "clean"
+    - "yard"
+    - "hazard"
+    - "dirty"
+
+multimeter:
+  description: "Device for measuring electrical properties"
+  keywords:
+    - "electrical"
+    - "wiring"
+    - "circuit"
+    - "voltage"
+
+# Specialized Tools
+hex_keys:
+  description: "Set of hex wrenches for assembly tasks"
+  keywords:
+    - "bike"
+    - "furniture"
+    - "ikea"
+    - "assemble"
+
+shop_vac:
+  description: "Industrial vacuum cleaner for cleanup"
+  keywords:
+    - "dust"
+    - "cleanup"
+    - "debris"
+    - "removal"
+
+safety_glasses:
+  description: "Protective eyewear for dangerous tasks"
+  keywords:
+    - "cutting"
+    - "grind"
+    - "saw"
+    - "danger"
+
+wifi_analyzer:
+  description: "Device for analyzing and optimizing WiFi networks"
+  keywords:
+    - "network"
+    - "router"
+    - "signal"
+    - "wifi"
