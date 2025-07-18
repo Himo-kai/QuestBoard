@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}500 - Internal Server Error{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <div class="error-template py-5">
+                <h1 class="display-1 text-danger">500</h1>
+                <h2 class="display-4">Internal Server Error</h2>
+                <div class="error-details my-4">
+                    <p class="lead">Oops! Something went wrong on our end.</p>
+                    <p>Our team has been notified and we're working to fix the issue.</p>
+                </div>
+                <div class="error-actions">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-primary btn-lg me-2">
+                        <i class="fas fa-home"></i> Return Home
+                    </a>
+                    <a href="mailto:support@questboard.app" class="btn btn-outline-secondary btn-lg">
+                        <i class="fas fa-envelope"></i> Contact Support
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.error-template {
+    padding: 40px 15px;
+    text-align: center;
+}
+
+.error-actions {
+    margin-top: 30px;
+    margin-bottom: 15px;
+}
+
+.btn {
+    margin-right: 10px;
+}
+
+.lead {
+    font-size: 1.25rem;
+    font-weight: 300;
+}
+</style>
+{% endblock %}

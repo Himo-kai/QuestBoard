@@ -9,121 +9,196 @@ This package contains the main application factory and configuration.
 """
 import os
 import logging
-from datetime import datetime
-from flask import Flask, request, jsonify, render_template
+from logging.handlers import RotatingFileHandler
+from flask import Flask, jsonify, request
 from flask_cors import CORS
-from config import config
-from .services.logging_service import LoggingService
-from .services.nlp_service import NLPService
-from .monitoring import init_monitoring, monitor_request
-from .api_spec import api
-from .api_docs import api as api_blueprint
+from flask_restx import Api
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from flask_login import LoginManager
+from .config import Config, DevelopmentConfig, TestingConfig, ProductionConfig
 
-# Initialize services
-logger = LoggingService.get_logger(__name__)
-nlp_service = NLPService()
+config = {
+    'development': DevelopmentConfig,
+    'testing': TestingConfig,
+    'production': ProductionConfig,
+    'default': DevelopmentConfig
+}
 
+# Import models to ensure they are registered with SQLAlchemy
+# Models are now imported through models/__init__.py
+
+# Initialize extensions
+from .models import db, init_app as init_models
+migrate = Migrate()
+login_manager = LoginManager()
+login_manager.login_view = 'auth.login'
+login_manager.login_message = 'Please log in to access this page.'
+login_manager.login_message_category = 'info'
+
+# Initialize API
+def create_api():
+    """Create and configure the Flask-RESTX API."""
+    api = Api(
+        version='1.0',
+        title='QuestBoard API',
+        description='A REST API for managing gigs and freelance opportunities',
+        doc='/api/docs/',
+        default='QuestBoard',
+        default_label='QuestBoard API Endpoints',
+        validate=True
+    )
+    
+    # Add namespaces
+    from .routes.api.quests import quest_ns
+    from .routes.api.users import user_ns
+    
+    api.add_namespace(quest_ns, path='/api/quests')
+    api.add_namespace(user_ns, path='/api/users')
+    
+    return api
+
+# Create the application factory
 def create_app(config_name=None):
     """
-    Create and configure the Flask application.
+    Create and configure an instance of the Flask application.
     
     Args:
-        config_name: The configuration to use (development, testing, production)
-        
+        config_name: The name of the configuration to use (development, testing, production).
+                    If not specified, uses FLASK_CONFIG environment variable or defaults to 'development'.
+    
     Returns:
-        Flask: The configured Flask application
+        Flask: The configured Flask application instance.
     """
     if config_name is None:
-        config_name = os.environ.get('FLASK_ENV', 'development')
+        config_name = os.getenv('FLASK_CONFIG', 'development')
     
-    # Create and configure the app
     app = Flask(__name__)
-    
-    # Enable CORS
-    CORS(app)
     
     # Load configuration
     app.config.from_object(config[config_name])
     
-    # Configure logging
-    LoggingService.configure(
-        log_level=logging.DEBUG if config_name == 'development' else logging.INFO,
-        log_file='questboard.log'
-    )
+    # Ensure the database URI is set
+    if not app.config.get('SQLALCHEMY_DATABASE_URI'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = config[config_name].SQLALCHEMY_DATABASE_URI
     
-    # Initialize database
-    from .database import init_app as init_db
-    db = init_db(app)
+    # Initialize extensions
+    # Set the database URI from the config
+    app.config['SQLALCHEMY_DATABASE_URI'] = config[config_name].SQLALCHEMY_DATABASE_URI
     
-    # Make db available on the app
-    app.db = db
+    # Initialize models and database
+    init_models(app)
+    migrate.init_app(app, db)
+    login_manager.init_app(app)
     
-    # Initialize NLP service with sample data
-    with app.app_context():
-        # Sample documents for TF-IDF initialization
-        sample_docs = [
-            "Python developer needed for web application",
-            "Frontend React developer with TypeScript experience",
-            "DevOps engineer for cloud infrastructure",
-            "Cybersecurity expert for penetration testing",
-            "Data scientist with machine learning experience"
-        ]
-        nlp_service.fit(sample_docs)
-        
-        # Ensure database tables exist
-        db.create_tables()
+    # Configure login manager
+    @login_manager.user_loader
+    def load_user(user_id):
+        from .models.user import User
+        return User.query.get(int(user_id))
     
     # Register blueprints
-    from .routes import main as main_blueprint
-    app.register_blueprint(main_blueprint)
+    from .routes.auth import auth_bp
+    app.register_blueprint(auth_bp)
     
-    from .routes import api as api_blueprint
-    app.register_blueprint(api_blueprint, url_prefix='/api')
+    # Register main blueprint
+    from .routes.main import main_bp
+    app.register_blueprint(main_bp)
     
-    # Initialize monitoring
-    init_monitoring(app)
+    # Enable CORS
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
     
-    # Initialize API documentation
+    # Configure logging
+    if not app.debug and not app.testing:
+        if not os.path.exists('logs'):
+            os.mkdir('logs')
+        file_handler = RotatingFileHandler('logs/questboard.log', maxBytes=10240, backupCount=10)
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+        file_handler.setLevel(logging.INFO)
+        app.logger.addHandler(file_handler)
+        app.logger.setLevel(logging.INFO)
+        app.logger.info('QuestBoard startup')
+    else:
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+    
+    # Register blueprints
+    from .routes import register_blueprints
+    register_blueprints(app)
+    
+    # Initialize API
+    api = create_api()
     api.init_app(app)
     
-    # Import and register API routes
-    from .routes import api as api_blueprint
-    app.register_blueprint(api_blueprint, url_prefix='/api')
-    
     # Register error handlers
-    register_error_handlers(app)
+    @app.errorhandler(404)
+    def not_found_error(error):
+        if request.path.startswith('/api/'):
+            return jsonify({
+                'status': 'error',
+                'message': 'The requested resource was not found.'
+            }), 404
+        return 'Not Found', 404
     
-    # Register CLI commands
-    register_commands(app)
+    @app.errorhandler(500)
+    def internal_error(error):
+        app.logger.error(f'Server Error: {error}', exc_info=True)
+        if request.path.startswith('/api/'):
+            return jsonify({
+                'status': 'error',
+                'message': 'An internal server error occurred.'
+            }), 500
+        return 'Internal Server Error', 500
     
-    # Add URL converters, context processors, etc.
-    @app.context_processor
-    def inject_globals():
+    # Shell context for Flask shell
+    @app.shell_context_processor
+    def make_shell_context():
         return {
-            'app_name': 'QuestBoard',
-            'current_year': datetime.now().year
+            'db': db,
+            'User': User,
+            'Quest': Quest,
+            'Tag': Tag
         }
     
-    # Health check endpoint
-    @app.route('/health')
-    def health_check():
-        return jsonify({
-            'status': 'ok',
-            'timestamp': datetime.utcnow().isoformat(),
-            'environment': config_name
-        })
-    
-    logger.info(f"Application initialized in {config_name} mode")
     return app
 
 def register_error_handlers(app):
     """Register error handlers for the application."""
-    from flask import jsonify, render_template, request
+    @app.errorhandler(400)
+    def bad_request_error(error):
+        return jsonify({
+            'error': 'Bad Request',
+            'message': str(error),
+            'status_code': 400
+        }), 400
+    
+    @app.errorhandler(401)
+    def unauthorized_error(error):
+        return jsonify({
+            'error': 'Unauthorized',
+            'message': 'Authentication is required',
+            'status_code': 401
+        }), 401
+    
+    @app.errorhandler(403)
+    def forbidden_error(error):
+        return jsonify({
+            'error': 'Forbidden',
+            'message': 'You do not have permission to access this resource',
+            'status_code': 403
+        }), 403
     
     @app.errorhandler(404)
     def not_found_error(error):
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({"error": "Not found"}), 404
+        return jsonify({
+            'error': 'Not Found',
+            'message': 'The requested resource was not found',
+            'status_code': 404
+        }), 404
         return render_template('errors/404.html'), 404
     
     @app.errorhandler(500)

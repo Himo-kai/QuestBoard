@@ -1,0 +1,622 @@
+{% extends "base.html" %}
+
+{% block title %}{{ quest.title }} - QuestBoard{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="bg-primary bg-opacity-10 py-5">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.quests') }}">Quests</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ quest.title|truncate(30) }}</li>
+            </ol>
+        </nav>
+        
+        <div class="row align-items-center mt-4">
+            <div class="col-lg-8">
+                <div class="d-flex align-items-center mb-3">
+                    <h1 class="display-5 fw-bold mb-0 me-3">{{ quest.title }}</h1>
+                    <span class="badge bg-{{ quest.difficulty|lower }}">
+                        {{ quest.difficulty }}
+                    </span>
+                </div>
+                
+                <div class="d-flex flex-wrap gap-3 mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-coins text-warning me-2"></i>
+                        <span class="fw-bold">{{ "${:,.2f}".format(quest.reward) }}</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-map-marker-alt text-danger me-2"></i>
+                        <span>{{ quest.location }}</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <i class="far fa-clock text-info me-2"></i>
+                        <span>Posted {{ quest.created_at|time_ago }}</span>
+                    </div>
+                </div>
+                
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    {% for tag in quest.tags %}
+                    <span class="badge bg-light text-dark border">
+                        <i class="fas fa-tag me-1"></i> {{ tag }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="col-lg-4 mt-4 mt-lg-0">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <img src="{{ url_for('static', filename='img/quest-default.jpg') }}" 
+                                 alt="Quest" class="img-fluid rounded" style="max-height: 180px; width: 100%; object-fit: cover;">
+                        </div>
+                        {% if current_user.id == quest.creator_id %}
+                            <a href="{{ url_for('main.edit_quest', quest_id=quest.id) }}" class="btn btn-outline-primary w-100 mb-2">
+                                <i class="fas fa-edit me-1"></i> Edit Quest
+                            </a>
+                            <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                <i class="fas fa-trash-alt me-1"></i> Delete
+                            </button>
+                        {% else %}
+                            <button class="btn btn-primary w-100 mb-2" data-bs-toggle="modal" data-bs-target="#acceptQuestModal">
+                                <i class="fas fa-hand-holding-heart me-1"></i> Accept Quest
+                            </button>
+                            <button class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#messageModal">
+                                <i class="far fa-envelope me-1"></i> Message Poster
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="container py-5">
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-8">
+            <!-- Quest Description -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h2 class="h5 mb-0">Quest Details</h2>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h3 class="h6 text-muted mb-3">Description</h3>
+                        <div class="quest-description">
+                            {{ quest.description|markdown|safe }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <h3 class="h6 text-muted">Requirements</h3>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check-circle text-success me-2"></i> Adventurer's Guild Membership</li>
+                                <li><i class="fas fa-check-circle text-success me-2"></i> Level {{ quest.min_level|default(5) }}+</li>
+                                <li><i class="fas fa-check-circle text-success me-2"></i> Basic Combat Skills</li>
+                                {% if quest.requirements %}
+                                    <li><i class="fas fa-check-circle text-success me-2"></i> {{ quest.requirements }}</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <h3 class="h6 text-muted">Quest Details</h3>
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <strong>Category:</strong> 
+                                    <span class="badge bg-primary">{{ quest.category }}</span>
+                                </li>
+                                <li class="mb-2">
+                                    <strong>Time to Complete:</strong> {{ quest.timeframe }} days
+                                </li>
+                                <li class="mb-2">
+                                    <strong>Quest Type:</strong> {{ quest.quest_type|default('Solo') }}
+                                </li>
+                                <li class="mb-2">
+                                    <strong>Status:</strong> 
+                                    <span class="badge bg-{{ 'success' if quest.status == 'Open' else 'secondary' }}">
+                                        {{ quest.status }}
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Map -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h5 mb-0">Quest Location</h2>
+                    <a href="#" class="btn btn-sm btn-outline-primary">View Larger Map</a>
+                </div>
+                <div class="card-body p-0" style="height: 300px;">
+                    <div class="d-flex align-items-center justify-content-center h-100 bg-light">
+                        <div class="text-center p-4">
+                            <i class="fas fa-map-marked-alt fa-3x text-muted mb-3"></i>
+                            <h3 class="h5">{{ quest.location }}</h3>
+                            <p class="text-muted">Map view coming soon</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quest Updates -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h2 class="h5 mb-0">Quest Updates</h2>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-badge bg-success">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Quest Posted</h6>
+                                <p class="text-muted small mb-0">Posted by {{ quest.creator.username }} {{ quest.created_at|time_ago }}</p>
+                            </div>
+                        </div>
+                        
+                        {% if quest.updated_at > quest.created_at %}
+                        <div class="timeline-item">
+                            <div class="timeline-badge bg-info">
+                                <i class="fas fa-edit"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Quest Updated</h6>
+                                <p class="text-muted small mb-0">Last updated {{ quest.updated_at|time_ago }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if quest.completed_at %}
+                        <div class="timeline-item">
+                            <div class="timeline-badge bg-primary">
+                                <i class="fas fa-flag-checkered"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Quest Completed</h6>
+                                <p class="text-muted small mb-0">Completed {{ quest.completed_at|time_ago }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column -->
+        <div class="col-lg-4">
+            <!-- About the Poster -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h2 class="h5 mb-0">Quest Giver</h2>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <img src="{{ quest.creator.avatar_url or url_for('static', filename='img/avatar-default.png') }}" 
+                             class="rounded-circle mb-2" width="100" height="100" alt="{{ quest.creator.username }}">
+                        <h3 class="h5 mb-1">{{ quest.creator.username }}</h3>
+                        <p class="text-muted small mb-3">Member since {{ quest.creator.created_at|format_date('%b %Y') }}</p>
+                        
+                        <div class="d-flex justify-content-center gap-3 mb-3">
+                            <div class="text-center">
+                                <div class="h5 mb-0">{{ quest.creator.quests_posted|length }}</div>
+                                <div class="text-muted small">Quests</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="h5 mb-0">{{ quest.creator.rating|default(5.0) }}</div>
+                                <div class="text-muted small">Rating</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="h5 mb-0">{{ quest.creator.completion_rate|default(100) }}%</div>
+                                <div class="text-muted small">Completion</div>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-outline-primary btn-sm w-100 mb-2">
+                            <i class="far fa-user me-1"></i> View Profile
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#messageModal">
+                            <i class="far fa-envelope me-1"></i> Send Message
+                        </button>
+                    </div>
+                    
+                    <div class="border-top pt-3">
+                        <h4 class="h6 mb-2">About</h4>
+                        <p class="small text-muted">
+                            {{ quest.creator.bio or 'No bio provided.' }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Similar Quests -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h2 class="h5 mb-0">Similar Quests</h2>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for similar in similar_quests %}
+                    <a href="{{ url_for('main.view_quest', quest_id=similar.id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ similar.title }}</h6>
+                            <small class="text-{{ 'success' if similar.status == 'Open' else 'secondary' }}">
+                                {{ similar.status }}
+                            </small>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">{{ similar.location }}</small>
+                            <strong class="text-primary">${{ "%0.2f"|format(similar.reward|float) }}</strong>
+                        </div>
+                    </a>
+                    {% else %}
+                    <div class="list-group-item">
+                        <p class="text-muted small mb-0">No similar quests found.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Accept Quest Modal -->
+<div class="modal fade" id="acceptQuestModal" tabindex="-1" aria-labelledby="acceptQuestModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="acceptQuestModalLabel">Accept Quest: {{ quest.title }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to accept this quest? Once accepted, you'll be able to communicate with the quest giver and track your progress.</p>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Make sure you meet all the requirements before accepting this quest.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmAccept">Accept Quest</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Message Modal -->
+<div class="modal fade" id="messageModal" tabindex="-1" aria-labelledby="messageModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="messageModalLabel">Message {{ quest.creator.username }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="messageForm">
+                    <input type="hidden" name="recipient_id" value="{{ quest.creator.id }}">
+                    <input type="hidden" name="quest_id" value="{{ quest.id }}">
+                    
+                    <div class="mb-3">
+                        <label for="messageSubject" class="form-label">Subject</label>
+                        <input type="text" class="form-control" id="messageSubject" name="subject" 
+                               value="Regarding: {{ quest.title }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="messageContent" class="form-label">Message</label>
+                        <textarea class="form-control" id="messageContent" name="content" rows="5" required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" form="messageForm" class="btn btn-primary">
+                    <i class="far fa-paper-plane me-1"></i> Send Message
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+{% if current_user.id == quest.creator_id %}
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger" id="deleteModalLabel">Delete Quest</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this quest? This action cannot be undone.</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Deleting this quest will remove it permanently, including all associated data.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('main.delete_quest', quest_id=quest.id) }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash-alt me-1"></i> Delete Permanently
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Timeline */
+.timeline {
+    position: relative;
+    padding-left: 3rem;
+}
+
+.timeline:before {
+    content: '';
+    position: absolute;
+    left: 1.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 1.5rem;
+}
+
+.timeline-badge {
+    position: absolute;
+    left: -3rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    z-index: 1;
+}
+
+.timeline-content {
+    background: white;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+/* Difficulty badges */
+.badge.bg-easy { background-color: #198754 !important; }
+.badge.bg-medium { background-color: #fd7e14 !important; }
+.badge.bg-hard { background-color: #dc3545 !important; }
+.badge.bg-epic { background-color: #6f42c1 !important; }
+
+/* Quest description styling */
+.quest-description {
+    line-height: 1.7;
+}
+
+.quest-description h1, 
+.quest-description h2, 
+.quest-description h3, 
+.quest-description h4, 
+.quest-description h5, 
+.quest-description h6 {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.quest-description p {
+    margin-bottom: 1rem;
+}
+
+.quest-description ul, 
+.quest-description ol {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+.quest-description a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.quest-description a:hover {
+    text-decoration: underline;
+}
+
+.quest-description img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.375rem;
+    margin: 1rem 0;
+}
+
+.quest-description pre {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+}
+
+.quest-description code {
+    background-color: #f8f9fa;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.2rem;
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.875em;
+}
+
+.quest-description pre code {
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+
+.quest-description blockquote {
+    border-left: 4px solid #dee2e6;
+    padding-left: 1rem;
+    margin-left: 0;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.quest-description table {
+    width: 100%;
+    margin-bottom: 1rem;
+    border-collapse: collapse;
+}
+
+.quest-description th,
+.quest-description td {
+    padding: 0.75rem;
+    vertical-align: top;
+    border: 1px solid #dee2e6;
+}
+
+.quest-description th {
+    background-color: #f8f9fa;
+    text-align: left;
+}
+
+.quest-description tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle accept quest button
+    const acceptBtn = document.getElementById('confirmAccept');
+    if (acceptBtn) {
+        acceptBtn.addEventListener('click', function() {
+            // In a real app, this would be an API call
+            fetch('{{ url_for("api.accept_quest", quest_id=quest.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message and redirect or update UI
+                    showAlert('Quest accepted successfully!', 'success');
+                    // Close the modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('acceptQuestModal'));
+                    modal.hide();
+                    // Update the UI to show accepted status
+                    updateQuestStatus('accepted');
+                } else {
+                    throw new Error(data.message || 'Failed to accept quest');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert(error.message || 'Failed to accept quest. Please try again.', 'danger');
+            });
+        });
+    }
+    
+    // Handle message form submission
+    const messageForm = document.getElementById('messageForm');
+    if (messageForm) {
+        messageForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(messageForm);
+            const data = Object.fromEntries(formData.entries());
+            
+            // In a real app, this would be an API call
+            fetch('{{ url_for("api.send_message") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message and close modal
+                    showAlert('Message sent successfully!', 'success');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('messageModal'));
+                    modal.hide();
+                    // Reset form
+                    messageForm.reset();
+                } else {
+                    throw new Error(data.message || 'Failed to send message');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert(error.message || 'Failed to send message. Please try again.', 'danger');
+            });
+        });
+    }
+    
+    // Helper function to show alerts
+    function showAlert(message, type) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.role = 'alert';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Add to the top of the page
+        document.querySelector('.container.py-5').prepend(alertDiv);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            const alert = bootstrap.Alert.getOrCreateInstance(alertDiv);
+            if (alert) alert.close();
+        }, 5000);
+    }
+    
+    // Helper function to update quest status in the UI
+    function updateQuestStatus(status) {
+        const statusBadge = document.querySelector('.badge.bg-success');
+        if (statusBadge) {
+            statusBadge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            statusBadge.className = `badge bg-${status === 'accepted' ? 'primary' : 'secondary'}`;
+        }
+        
+        // Update the accept button
+        const acceptBtn = document.querySelector('.btn-primary[data-bs-target="#acceptQuestModal"]');
+        if (acceptBtn) {
+            acceptBtn.disabled = true;
+            acceptBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Quest Accepted';
+            acceptBtn.className = 'btn btn-success w-100 mb-2';
+        }
+    }
+    
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

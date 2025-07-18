@@ -2,8 +2,8 @@
 Scoring service for calculating quest rankings and difficulty scores.
 """
 import math
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple, Any
+from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass
 
 @dataclass
@@ -90,8 +90,10 @@ class ScoringService:
             float: Relevance score between 0 and 1
         """
         # Calculate recency component (0-1, higher for newer quests)
-        posted_date = quest_data.get('posted_date', datetime.utcnow())
-        days_old = (datetime.utcnow() - posted_date).total_seconds() / (24 * 3600)
+        posted_date = quest_data.get('posted_date', datetime.now(timezone.utc))
+        if posted_date.tzinfo is None:
+            posted_date = posted_date.replace(tzinfo=timezone.utc)
+        days_old = (datetime.now(timezone.utc) - posted_date).total_seconds() / (24 * 3600)
         recency = max(0, 1 - (days_old / 30))  # Decay over 30 days
         
         # Default skills match score

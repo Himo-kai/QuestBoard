@@ -22,7 +22,8 @@ wheels/
 # Database
 *.db
 *.sqlite3
-instance/
+instance/*
+!instance/.gitkeep
 !instance/README.md
 
 # Migrations

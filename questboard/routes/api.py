@@ -6,14 +6,17 @@ import logging
 from flask import request, current_app
 from datetime import datetime
 from flask_restx import Resource, Namespace, fields, reqparse
+from flask import Blueprint, jsonify
 from ..database import get_database
 from ..api_docs import api, quest_model, bookmark_model, handle_errors
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
-# Create API namespace
+# Create API namespace and blueprint
 ns = Namespace('api', description='QuestBoard API operations')
+api_bp = Blueprint('api', __name__)
+api.init_app(api_bp)
 api.add_namespace(ns, path='/')
 
 # Request parsers
@@ -79,205 +82,178 @@ class QuestList(Resource):
             page = args.get('page', 1)
             per_page = args.get('per_page', 10)
             search = args.get('search')
-            return jsonify({
-                'error': 'Quest not found'
-            }), 404
             
-        # Ensure all required fields are present with default values
-        quest.setdefault('approved_by', None)
-        quest.setdefault('approved_at', None)
-        quest.setdefault('tags', [])
-        
-        logger.debug(f"Found quest: {quest_id}")
-        return jsonify(quest)
-        
-    except Exception as e:
-        logger.error(f'Error getting quest {quest_id}: {str(e)}', exc_info=True)
-        return jsonify({
-            'error': 'Failed to retrieve quest',
-            'details': str(e)
-        }), 500
+            # Get quests with pagination
+            quests = db.get_quests(page=page, per_page=per_page, search=search)
+            
+            # Ensure all required fields are present with default values
+            for quest in quests:
+                quest.setdefault('approved_by', None)
+                quest.setdefault('approved_at', None)
+                quest.setdefault('tags', [])
+            
+            logger.debug(f"Found {len(quests)} quests")
+            return {
+                'quests': quests,
+                'page': page,
+                'per_page': per_page,
+                'total': len(quests)  # This should be the total count, not just the current page
+            }
+            
+        except Exception as e:
+            logger.error(f'Error getting quests: {str(e)}', exc_info=True)
+            return {'message': 'Failed to retrieve quests', 'details': str(e)}, 500
 
-@api_bp.route('/quests', methods=['POST'])
-def submit_quest():
-    """Submit a new quest."""
-    logger.info("POST /quests endpoint called")
-    db = get_database()
-    try:
-        data = request.get_json()
-        logger.debug(f"Received quest submission data: {data}")
-        
-        if not data:
-            logger.warning("No JSON data provided in request")
-            return jsonify({'error': 'No data provided'}), 400
-        
-        # Validate required fields
-        required_fields = ['title', 'description', 'source', 'url']
-        missing_fields = [field for field in required_fields if field not in data or not data[field]]
-        
-        if missing_fields:
-            error_msg = f'Missing required fields: {", ".join(missing_fields)}'
-            logger.warning(error_msg)
-            return jsonify({'error': error_msg}), 400
-        
-        # Prepare quest data
-        quest_data = {
-            'title': data['title'],
-            'description': data['description'],
-            'source': data['source'],
-            'url': data['url'],
-            'difficulty': data.get('difficulty', 'medium'),
-            'reward': data.get('reward', ''),
-            'region': data.get('region', ''),
-            'tags': data.get('tags', []),
-            'submitted_by': data.get('submitted_by', 'anonymous'),
-            'is_approved': data.get('is_approved', False)
-        }
-        
-        logger.debug(f"Attempting to add quest: {quest_data['title']}")
-        
-        # Add to database
-        quest = db.add_quest(quest_data)
-        if not quest:
-            logger.error("Failed to add quest to database")
-            return jsonify({'error': 'Failed to add quest'}), 500
-            
-        response = {
-            'id': quest['id'],
-            'title': quest['title'],
-            'is_approved': bool(quest.get('is_approved', False))
-        }
-        
-        logger.info(f"Successfully added quest: {quest['id']} - {quest['title']}")
-        logger.debug(f"Quest details: {response}")
-        
-        return jsonify(response), 201
-        
-    except Exception as e:
-        logger.error(f"Error submitting quest: {str(e)}", exc_info=True)
-        return jsonify({
-            'error': 'Failed to submit quest',
-            'details': str(e)
-        }), 500
-
-@api_bp.route('/quests/<quest_id>/bookmark', methods=['POST', 'DELETE'])
-def bookmark_quest(quest_id):
-    """Bookmark or unbookmark a quest."""
-    method = request.method
-    logger.info(f"{method} /quests/{quest_id}/bookmark endpoint called")
-    
-    db = get_database()
-    try:
-        data = request.get_json()
-        logger.debug(f"Bookmark request data: {data}")
-        
-        if not data or 'user_id' not in data or not data['user_id']:
-            logger.warning("User ID missing or empty in bookmark request")
-            return jsonify({'error': 'User ID is required and cannot be empty'}), 400
-            
-        user_id = data['user_id'].strip()
-        if not user_id:
-            logger.warning("User ID is empty after stripping whitespace")
-            return jsonify({'error': 'User ID cannot be empty'}), 400
-            
-        logger.debug(f"Processing {method} request for user: {user_id}, quest: {quest_id}")
-        
-        # Check if quest exists
-        quest = db.get_quest(quest_id)
-        if not quest:
-            logger.warning(f"Quest not found: {quest_id}")
-            return jsonify({'error': 'Quest not found'}), 404
-            
-        # Handle DELETE request (unbookmark)
-        if method == 'DELETE':
-            if not db.is_bookmarked(user_id, quest_id):
-                logger.info(f"Quest {quest_id} is not bookmarked by user {user_id}")
-                return jsonify({
-                    'success': False,
-                    'message': 'Quest is not bookmarked',
-                    'is_bookmarked': False
-                })
+@ns.route('/quests')
+class QuestSubmit(Resource):
+    @ns.doc('submit_quest')
+    @ns.expect(quest_model)
+    @ns.response(201, 'Quest submitted successfully')
+    @ns.response(400, 'Invalid input', error_model)
+    def post(self):
+        """Submit a new quest."""
+        logger.info("POST /quests endpoint called")
+        db = get_database()
+        try:
+            data = request.get_json()
+            if not data:
+                return {'message': 'No input data provided'}, 400
                 
+            # Validate required fields
+            required_fields = ['title', 'description', 'source', 'url']
+            for field in required_fields:
+                if field not in data:
+                    return {'message': f'Missing required field: {field}'}, 400
+                    
+            # Create quest
+            quest = {
+                'title': data['title'],
+                'description': data['description'],
+                'source': data['source'],
+                'url': data['url'],
+                'posted_date': datetime.utcnow(),
+                'difficulty': data.get('difficulty', 5.0),
+                'reward': data.get('reward', 'Not specified'),
+                'region': data.get('region', 'Unknown'),
+                'tags': data.get('tags', []),
+                'is_approved': False,
+                'submitted_by': data.get('submitted_by')
+            }
+            
+            # Save to database
+            db.add_quest(quest)
+            
+            logger.info(f"Quest submitted: {quest['title']}")
+            return {'message': 'Quest submitted successfully', 'quest': quest}, 201
+            
+        except Exception as e:
+            logger.error(f'Error submitting quest: {str(e)}', exc_info=True)
+            return {'message': 'Failed to submit quest', 'details': str(e)}, 500
+
+@ns.route('/quests/<string:quest_id>/bookmark')
+@ns.param('quest_id', 'The quest identifier')
+class BookmarkQuest(Resource):
+    def post(self, quest_id):
+        """Bookmark a quest."""
+        logger.info(f"POST /quests/{quest_id}/bookmark endpoint called")
+        db = get_database()
+        try:
+            data = request.get_json()
+            if not data or 'user_id' not in data or not data['user_id']:
+                return {'message': 'User ID is required and cannot be empty'}, 400
+                
+            user_id = data['user_id'].strip()
+            if not user_id:
+                return {'message': 'User ID cannot be empty'}, 400
+                
+            logger.debug(f"Processing POST request for user: {user_id}, quest: {quest_id}")
+            
+            # Check if quest exists
+            quest = db.get_quest(quest_id)
+            if not quest:
+                return {'message': 'Quest not found'}, 404
+                
+            # Add bookmark
+            is_bookmarked = db.toggle_bookmark(user_id, quest_id)
+            logger.info(f"Successfully added to bookmarks for user: {user_id}, quest: {quest_id}")
+            
+            return {'success': True, 'is_bookmarked': is_bookmarked, 'message': 'Bookmark added successfully'}
+            
+        except Exception as e:
+            logger.error(f"Error processing POST request: {str(e)}", exc_info=True)
+            return {'message': 'Failed to process POST request', 'details': str(e)}, 500
+            
+    def delete(self, quest_id):
+        """Unbookmark a quest."""
+        logger.info(f"DELETE /quests/{quest_id}/bookmark endpoint called")
+        db = get_database()
+        try:
+            data = request.get_json()
+            if not data or 'user_id' not in data or not data['user_id']:
+                return {'message': 'User ID is required and cannot be empty'}, 400
+                
+            user_id = data['user_id'].strip()
+            if not user_id:
+                return {'message': 'User ID cannot be empty'}, 400
+                
+            logger.debug(f"Processing DELETE request for user: {user_id}, quest: {quest_id}")
+            
+            # Check if quest exists
+            quest = db.get_quest(quest_id)
+            if not quest:
+                return {'message': 'Quest not found'}, 404
+                
+            # Remove bookmark
             is_bookmarked = db.toggle_bookmark(user_id, quest_id)
             logger.info(f"Successfully removed from bookmarks for user: {user_id}, quest: {quest_id}")
-            return jsonify({
+            
+            return {'success': True, 'is_bookmarked': is_bookmarked, 'message': 'Bookmark removed successfully'}
+            
+        except Exception as e:
+            logger.error(f"Error processing DELETE request: {str(e)}", exc_info=True)
+            return {'message': 'Failed to process DELETE request', 'details': str(e)}, 500
+
+@ns.route('/users/<string:user_id>/bookmarks')
+@ns.param('user_id', 'The user identifier')
+class UserBookmarks(Resource):
+    def get(self, user_id):
+        """Get all bookmarks for a user."""
+        logger.info(f"GET /users/{user_id}/bookmarks endpoint called")
+        db = get_database()
+        try:
+            logger.debug(f"Fetching bookmarks for user: {user_id}")
+            bookmarks = db.get_user_bookmarks(user_id)
+            
+            logger.debug(f"Found {len(bookmarks)} bookmarks for user: {user_id}")
+            
+            # Convert bookmarks to a list of dictionaries if they're not already
+            bookmarks_list = []
+            for bookmark in bookmarks:
+                if isinstance(bookmark, dict):
+                    bookmarks_list.append(bookmark)
+                else:
+                    # Assuming bookmark has a to_dict() method or similar
+                    bookmarks_list.append({
+                        'id': getattr(bookmark, 'id', None),
+                        'title': getattr(bookmark, 'title', ''),
+                        'description': getattr(bookmark, 'description', ''),
+                        'source': getattr(bookmark, 'source', ''),
+                        'url': getattr(bookmark, 'url', ''),
+                        'posted_date': getattr(bookmark, 'posted_date', None),
+                        'difficulty': getattr(bookmark, 'difficulty', None),
+                        'reward': getattr(bookmark, 'reward', None),
+                        'region': getattr(bookmark, 'region', None),
+                        'tags': getattr(bookmark, 'tags', []),
+                        'is_approved': getattr(bookmark, 'is_approved', False)
+                    })
+            
+            logger.info(f"Successfully retrieved {len(bookmarks_list)} bookmarks for user: {user_id}")
+            return {
                 'success': True,
-                'is_bookmarked': is_bookmarked,
-                'message': 'Bookmark removed successfully'
-            })
-        
-        # Handle POST request (bookmark)
-        if db.is_bookmarked(user_id, quest_id):
-            logger.info(f"Quest {quest_id} is already bookmarked by user {user_id}")
-            return jsonify({
-                'success': False,
-                'message': 'Quest is already bookmarked',
-                'is_bookmarked': True
-            })
+                'bookmarks': bookmarks_list,
+                'count': len(bookmarks_list)
+            }
             
-        # Add bookmark
-        is_bookmarked = db.toggle_bookmark(user_id, quest_id)
-        logger.info(f"Successfully added to bookmarks for user: {user_id}, quest: {quest_id}")
-        
-        return jsonify({
-            'success': True,
-            'is_bookmarked': is_bookmarked,
-            'message': 'Bookmark added successfully'
-        })
-        
-    except Exception as e:
-        logger.error(f"Error processing {method} request: {str(e)}", exc_info=True)
-        return jsonify({
-            'error': f'Failed to process {method} request',
-            'details': str(e)
-        }), 500
-
-@api_bp.route('/users/<user_id>/bookmarks', methods=['GET'])
-def get_user_bookmarks(user_id):
-    """Get all bookmarks for a user."""
-    logger.info(f"GET /users/{user_id}/bookmarks endpoint called")
-    db = get_database()
-    try:
-        logger.debug(f"Fetching bookmarks for user: {user_id}")
-        bookmarks = db.get_user_bookmarks(user_id)
-        
-        logger.debug(f"Found {len(bookmarks)} bookmarks for user: {user_id}")
-        
-        # Ensure all bookmarks have required fields
-        for bookmark in bookmarks:
-            bookmark.setdefault('approved_by', None)
-            bookmark.setdefault('approved_at', None)
-            bookmark.setdefault('tags', [])
-            
-        response = {
-            'bookmarks': bookmarks,
-            'count': len(bookmarks)
-        }
-        
-        logger.debug(f"Returning bookmarks for user: {user_id}")
-        return jsonify(response)
-        
-    except Exception as e:
-        logger.error(f"Error fetching bookmarks for user {user_id}: {str(e)}", exc_info=True)
-        return jsonify({
-            'error': 'Failed to retrieve bookmarks',
-            'details': str(e)
-        }), 500
-
-# Convert tags from JSON string to list if needed
-        for bookmark in bookmarks:
-            if 'tags' in bookmark and isinstance(bookmark['tags'], str):
-                try:
-                    bookmark['tags'] = json.loads(bookmark['tags'])
-                except (json.JSONDecodeError, TypeError):
-                    bookmark['tags'] = []
-        
-        return jsonify({
-            'bookmarks': bookmarks,
-            'count': len(bookmarks),
-            'user_id': user_id
-        })
-    except Exception as e:
-        return jsonify({
-            'error': str(e)
-        }), 500
+        except Exception as e:
+            logger.error(f"Error retrieving bookmarks for user {user_id}: {str(e)}", exc_info=True)
+            return {'message': 'Failed to retrieve bookmarks', 'details': str(e)}, 500

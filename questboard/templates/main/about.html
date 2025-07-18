@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}About - QuestBoard{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h1 class="display-4 mb-4">About QuestBoard</h1>
+            <p class="lead">
+                QuestBoard is a platform designed to connect adventurers with exciting quests and opportunities.
+                Our mission is to make it easy to find and participate in meaningful adventures.
+            </p>
+            
+            <div class="my-5">
+                <h2 class="h3 mb-3">Our Story</h2>
+                <p>
+                    Founded in 2023, QuestBoard was born out of a desire to create a better way for adventurers
+                    to discover and participate in quests. We believe that everyone should have the opportunity
+                    to embark on exciting journeys and create lasting memories.
+                </p>
+            </div>
+            
+            <div class="my-5">
+                <h2 class="h3 mb-3">Our Values</h2>
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body">
+                                <h3 class="h5">Adventure</h3>
+                                <p>We believe in the power of adventure to transform lives and create meaningful experiences.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body">
+                                <h3 class="h5">Community</h3>
+                                <p>Building a strong, supportive community of adventurers is at the heart of what we do.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body">
+                                <h3 class="h5">Integrity</h3>
+                                <p>We're committed to transparency, honesty, and ethical practices in everything we do.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="my-5">
+                <h2 class="h3 mb-3">Meet the Team</h2>
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                        <i class="fas fa-user fa-2x text-muted"></i>
+                                    </div>
+                                    <div class="ms-3">
+                                        <h3 class="h5 mb-0">John Doe</h3>
+                                        <p class="text-muted mb-0">Founder & CEO</p>
+                                    </div>
+                                </div>
+                                <p>Passionate about adventure and technology, John leads the QuestBoard team with vision and enthusiasm.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                        <i class="fas fa-user fa-2x text-muted"></i>
+                                    </div>
+                                    <div class="ms-3">
+                                        <h3 class="h5 mb-0">Jane Smith</h3>
+                                        <p class="text-muted mb-0">Lead Developer</p>
+                                    </div>
+                                </div>
+                                <p>With years of experience in software development, Jane brings technical expertise to the QuestBoard platform.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="my-5">
+                <h2 class="h3 mb-3">Join Our Community</h2>
+                <p>
+                    Ready to start your next adventure? Join thousands of other adventurers on QuestBoard today!
+                </p>
+                <div class="mt-4">
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary me-2">Sign Up Now</a>
+                    <a href="{{ url_for('main.quests') }}" class="btn btn-outline-primary">Browse Quests</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.display-4 {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.rounded-circle {
+    background-color: #f8f9fa;
+}
+</style>
+{% endblock %}

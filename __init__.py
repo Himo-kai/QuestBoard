@@ -4,8 +4,8 @@
 
 """QuestBoard application factory."""
 from flask import Flask
-from config import Config
-from database import get_database
+from questboard.config import Config
+from questboard.database import get_database
 
 def create_app(config_class=Config):
     """Create and configure the Flask application."""

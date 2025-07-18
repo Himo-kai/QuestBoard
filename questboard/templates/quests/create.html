@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}Create Quest - QuestBoard{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h1 class="h4 mb-0">Create a New Quest</h1>
+                    <p class="text-muted mb-0">Fill in the details below to create your quest</p>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Quest Title -->
+                        <div class="mb-4">
+                            <label for="title" class="form-label fw-bold">Quest Title *</label>
+                            {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else ""), placeholder="Enter quest title") }}
+                            {% if form.title.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.title.errors[0] }}
+                                </div>
+                            {% else %}
+                                <div class="form-text">Make it descriptive and engaging</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Category and Reward -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label for="category" class="form-label fw-bold">Category *</label>
+                                {{ form.category(class="form-select" + (" is-invalid" if form.category.errors else "")) }}
+                                {% if form.category.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ form.category.errors[0] }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="reward" class="form-label fw-bold">Reward *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    {{ form.reward(class="form-control" + (" is-invalid" if form.reward.errors else ""), placeholder="0.00") }}
+                                </div>
+                                {% if form.reward.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.reward.errors[0] }}
+                                    </div>
+                                {% else %}
+                                    <div class="form-text">Amount in USD</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Difficulty and Timeframe -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label for="difficulty" class="form-label fw-bold">Difficulty *</label>
+                                {{ form.difficulty(class="form-select" + (" is-invalid" if form.difficulty.errors else "")) }}
+                                {% if form.difficulty.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ form.difficulty.errors[0] }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="timeframe" class="form-label fw-bold">Timeframe (days) *</label>
+                                {{ form.timeframe(class="form-control" + (" is-invalid" if form.timeframe.errors else ""), placeholder="e.g. 7") }}
+                                {% if form.timeframe.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ form.timeframe.errors[0] }}
+                                    </div>
+                                {% else %}
+                                    <div class="form-text">Estimated days to complete</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Location -->
+                        <div class="mb-4">
+                            <label for="location" class="form-label fw-bold">Location *</label>
+                            {{ form.location(class="form-control" + (" is-invalid" if form.location.errors else ""), placeholder="e.g. Dark Forest, Northern Mountains") }}
+                            {% if form.location.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.location.errors[0] }}
+                                </div>
+                            {% else %}
+                                <div class="form-text">Where does this quest take place?</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Description -->
+                        <div class="mb-4">
+                            <label for="description" class="form-label fw-bold">Quest Description *</label>
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), 
+                                              rows="6", 
+                                              placeholder="Provide detailed information about the quest, including objectives, requirements, and any special instructions.") }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.description.errors[0] }}
+                                </div>
+                            {% else %}
+                                <div class="form-text">Be as detailed as possible to attract the right adventurers</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Tags -->
+                        <div class="mb-4">
+                            <label for="tags" class="form-label fw-bold">Tags</label>
+                            {{ form.tags(class="form-control" + (" is-invalid" if form.tags.errors else ""), 
+                                        placeholder="e.g. treasure, exploration, combat") }}
+                            {% if form.tags.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.tags.errors[0] }}
+                                </div>
+                            {% else %}
+                                <div class="form-text">Separate tags with commas</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Image Upload -->
+                        <div class="mb-4">
+                            <label for="image" class="form-label fw-bold">Quest Image</label>
+                            {{ form.image(class="form-control" + (" is-invalid" if form.image.errors else "")) }}
+                            {% if form.image.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.image.errors[0] }}
+                                </div>
+                            {% else %}
+                                <div class="form-text">Upload an image that represents your quest (optional)</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Terms and Conditions -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                {{ form.terms(class="form-check-input" + (" is-invalid" if form.terms.errors else "")) }}
+                                <label class="form-check-label" for="terms">
+                                    I agree to the <a href="{{ url_for('main.terms') }}" target="_blank">Terms of Service</a> and 
+                                    <a href="{{ url_for('main.privacy') }}" target="_blank">Privacy Policy</a> *
+                                </label>
+                                {% if form.terms.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.terms.errors[0] }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-5">
+                            <a href="{{ url_for('main.quests') }}" class="btn btn-outline-secondary me-md-2">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-1"></i> Post Quest
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-label {
+    margin-bottom: 0.5rem;
+}
+
+.form-control, .form-select {
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.375rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(74, 111, 165, 0.25);
+}
+
+.invalid-feedback {
+    margin-top: 0.25rem;
+}
+
+.card {
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.card-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.btn {
+    padding: 0.6rem 1.5rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: #3a5a80;
+    border-color: #3a5a80;
+}
+
+textarea.form-control {
+    min-height: 150px;
+}
+
+/* Custom file upload button */
+.form-control[type="file"] {
+    padding: 0.375rem 0.75rem;
+}
+
+/* Tags input styling */
+input[data-role="tagsinput"] {
+    height: auto;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Bootstrap Tags Input -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-tagsinput/0.8.0/bootstrap-tagsinput.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-tagsinput/0.8.0/bootstrap-tagsinput.css" />
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tags input
+    $('input[name="tags"]').tagsinput({
+        trimValue: true,
+        confirmKeys: [13, 44, 32], // Enter, comma, space
+        maxTags: 5,
+        maxChars: 20
+    });
+    
+    // Form validation
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            let valid = true;
+            const requiredFields = form.querySelectorAll('[required]');
+            
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    valid = false;
+                    field.classList.add('is-invalid');
+                    const feedback = field.nextElementSibling;
+                    if (feedback && feedback.classList.contains('invalid-feedback')) {
+                        feedback.textContent = 'This field is required.';
+                        feedback.style.display = 'block';
+                    }
+                }
+            });
+            
+            if (!valid) {
+                e.preventDefault();
+                // Scroll to first invalid field
+                const firstInvalid = form.querySelector('.is-invalid');
+                if (firstInvalid) {
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        });
+        
+        // Remove validation on input
+        form.querySelectorAll('input, textarea, select').forEach(input => {
+            input.addEventListener('input', function() {
+                if (this.value.trim()) {
+                    this.classList.remove('is-invalid');
+                    const feedback = this.nextElementSibling;
+                    if (feedback && feedback.classList.contains('invalid-feedback')) {
+                        feedback.style.display = 'none';
+                    }
+                }
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

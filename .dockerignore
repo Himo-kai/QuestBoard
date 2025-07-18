@@ -1,20 +1,254 @@
+# ====================================
 # Python
+# ====================================
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Environment files
+# ====================================
+# Environment & Local Development
+# ====================================
 .env
 .env.*
+!.env.example
+.venv
+env/
+venv/
+ENV/
 
-# IDE
+# ====================================
+# Testing & Coverage
+# ====================================
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# ====================================
+# IDEs and Editors
+# ====================================
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
 
-# Logs
+# ====================================
+# Logs and databases
+# ====================================
 *.log
+logs/
+*.sqlite3
+*.db
+*.sql
 
-# OS files
+# ====================================
+# OS generated files
+# ====================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+
+# ====================================
+# Project specific
+# ====================================
+/instance/
+/questboard/instance/
+/static/uploads/
+/staticfiles/
+/media/
+
+# ====================================
+# Docker
+# ====================================
+docker-compose.override.yml
+
+# ====================================
+# Node.js (if applicable)
+# ====================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ====================================
+# Local development
+# ====================================
+local_settings.py
+
+# ====================================
+# Celery
+# ====================================
+celerybeat-schedule
+celerybeat.pid
+
+# ====================================
+# Distribution / packaging
+# ====================================
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ====================================
+# Unit test / coverage reports
+# ====================================
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# ====================================
+# Translations
+# ====================================
+*.mo
+*.pot
+
+# ====================================
+# Django stuff:
+# ====================================
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# ====================================
+# Flask stuff:
+# ====================================
+instance/
+.webassets-cache
+
+# ====================================
+# Scrapy stuff:
+# ====================================
+.scrapy
+
+# ====================================
+# Sphinx documentation
+# ====================================
+docs/_build/
+
+# ====================================
+# PyBuilder
+# ====================================
+target/
+
+# ====================================
+# IPython
+# ====================================
+profile_default/
+ipython_config.py
+
+# ====================================
+# pyenv
+# ====================================
+.python-version
+
+# ====================================
+# celery beat schedule file
+# ====================================
+celerybeat-schedule
+
+# ====================================
+# SageMath parsed files
+# ====================================
+*.sage.py
+
+# ====================================
+# Environments
+# ====================================
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ====================================
+# Spyder project settings
+# ====================================
+.spyderproject
+.spyproject
+
+# ====================================
+# Rope project settings
+# ====================================
+.ropeproject
+
+# ====================================
+# mkdocs documentation
+# ====================================
+/site
+
+# ====================================
+# mypy
+# ====================================
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ====================================
+# Pyre type checker
+# ====================================
+.pyre/
+
+# ====================================
+# pytype static type analyzer
+# ====================================
+.pytype/
+
+# ====================================
+# Cython debug symbols
+# ====================================
+cython_debug/

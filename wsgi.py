@@ -10,7 +10,7 @@ This module provides a production WSGI interface to the application.
 import os
 import logging
 from questboard import create_app
-from config import ProductionConfig
+
 
 # Configure logging before creating the app
 logging.basicConfig(level=logging.INFO)
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 try:
     # Create the application instance with production config
-    application = create_app(ProductionConfig)
+    application = create_app('production')
     logger.info("Application initialized successfully")
     
 except Exception as e:

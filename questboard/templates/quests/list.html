@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Quests - QuestBoard{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="display-4">Available Quests</h1>
+            <p class="lead text-muted">Find your next adventure</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <a href="{{ url_for('main.create_quest') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Create Quest
+            </a>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body">
+            <form class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0" placeholder="Search quests..." name="q">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" name="category">
+                        <option value="" selected>All Categories</option>
+                        <option value="adventure">Adventure</option>
+                        <option value="treasure">Treasure Hunt</option>
+                        <option value="rescue">Rescue Mission</option>
+                        <option value="delivery">Delivery</option>
+                        <option value="bounty">Bounty</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" name="difficulty">
+                        <option value="" selected>All Difficulties</option>
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                        <option value="epic">Epic</option>
+                    </select>
+                </div>
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-filter me-1"></i> Apply Filters
+                    </button>
+                    <a href="{{ url_for('main.quests') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-sync-alt me-1"></i> Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Quest List -->
+    <div class="row g-4">
+        {% for i in range(6) %}
+        <div class="col-lg-4 col-md-6">
+            <div class="card h-100 border-0 shadow-sm hover-shadow transition-all">
+                <div class="position-relative">
+                    <img src="https://source.unsplash.com/random/600x300/?adventure,{{ i }}" 
+                         class="card-img-top" alt="Quest thumbnail" style="height: 160px; object-fit: cover;">
+                    <div class="position-absolute top-0 end-0 m-2">
+                        <span class="badge bg-{{ ['primary', 'success', 'warning', 'danger'] | random }}">
+                            {{ ['Adventure', 'Treasure', 'Rescue', 'Bounty'] | random }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title mb-0">Quest #{{ "%03d" | format(loop.index) }}</h5>
+                        <span class="badge bg-{{ ['success', 'warning', 'danger'] | random }}">
+                            {{ ['Easy', 'Medium', 'Hard', 'Epic'] | random }}
+                        </span>
+                    </div>
+                    <p class="card-text text-muted small">
+                        {{ [
+                            "Retrieve the lost artifact from the ancient ruins.",
+                            "Escort the merchant caravan to the next town.",
+                            "Defeat the bandits terrorizing the village.",
+                            "Gather rare herbs from the enchanted forest.",
+                            "Solve the riddle of the haunted mansion.",
+                            "Deliver an important message to the king's court."
+                        ] | random }}
+                    </p>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-coins text-warning me-1"></i>
+                            <span class="fw-bold">{{ (range(100, 1000) | random) | format_currency }}</span>
+                        </div>
+                        <small class="text-muted">
+                            <i class="far fa-clock me-1"></i>
+                            {{ (range(1, 30) | random) }}d {{ (range(1, 24) | random) }}h left
+                        </small>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-top-0 pt-0">
+                    <a href="{{ url_for('main.view_quest', quest_id=loop.index) }}" class="btn btn-outline-primary w-100">
+                        View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    <nav aria-label="Quest pagination" class="mt-5">
+        <ul class="pagination justify-content-center">
+            <li class="page-item disabled">
+                <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+            <li class="page-item active"><a class="page-link" href="#">1</a></li>
+            <li class="page-item"><a class="page-link" href="#">2</a></li>
+            <li class="page-item"><a class="page-link" href="#">3</a></li>
+            <li class="page-item">
+                <a class="page-link" href="#">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.hover-shadow {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.hover-shadow:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1) !important;
+}
+
+.page-link {
+    color: var(--primary-color);
+}
+
+.page-item.active .page-link {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.4em 0.8em;
+}
+
+.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+.bg-success {
+    background-color: #198754 !important;
+}
+
+.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Add active class to current nav item
+document.addEventListener('DOMContentLoaded', function() {
+    const currentPage = window.location.pathname;
+    const navLinks = document.querySelectorAll('.nav-link');
+    
+    navLinks.forEach(link => {
+        if (link.getAttribute('href') === currentPage) {
+            link.classList.add('active');
+            link.setAttribute('aria-current', 'page');
+        }
+    });
+});
+</script>
+{% endblock %}

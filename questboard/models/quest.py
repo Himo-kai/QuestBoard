@@ -1,26 +1,236 @@
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+Quest and Tag models for the QuestBoard application.
 
-from datetime import datetime, timezone, timedelta
-from typing import List, Dict, Any, Optional, ClassVar, TypeVar, Type
-from dataclasses import dataclass, asdict, field, fields
+This module defines the Quest and Tag models along with their relationships.
+"""
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import List, Dict, Any, Optional, TYPE_CHECKING, TypeVar, Union
+from sqlalchemy.orm import Query
 
+from sqlalchemy import Column, Integer, String, Text, Float, Boolean, DateTime, ForeignKey, func
+from sqlalchemy.orm import relationship
+
+from .base import db, BaseModel
+from .associations import quest_tags
+from .tag import Tag
+
+if TYPE_CHECKING:
+    from .user import User
+
+# Type variable for generic class methods
 T = TypeVar('T', bound='Quest')
 
-@dataclass
-class Quest:
-    """A quest model representing a task or challenge."""
+class Quest(BaseModel):
+    """
+    Quest model representing a task or challenge in the system.
     
-    # Required fields
+    Quests can be created by users, tagged for categorization, and bookmarked
+    for easy reference. They support various difficulty levels and rewards.
+    """
+    __tablename__ = 'quests'
+    
+    # Core fields
+    title = db.Column(db.String(200), nullable=False, index=True)
+    description = db.Column(db.Text, nullable=False)
+    source = db.Column(db.String(100), nullable=True, index=True)
+    url = db.Column(db.String(500), unique=True, nullable=False, index=True)
+    
+    # Status and metadata
+    difficulty = db.Column(db.Float, default=5.0, nullable=False, index=True)
+    reward = db.Column(db.String(200), default="Not specified", nullable=False)
+    region = db.Column(db.String(100), default="Unknown", nullable=False, index=True)
+    is_approved = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    
+    # Timestamps
+    posted_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
+    
+    # Relationships
+    creator_id = db.Column(db.Integer, ForeignKey('users.id'), nullable=True, index=True)
+    approved_by_id = db.Column(db.Integer, ForeignKey('users.id'), nullable=True, index=True)
+    
+    # Many-to-many relationships
+    tags = db.relationship(
+        'Tag',
+        secondary=quest_tags,
+        lazy='subquery',
+        back_populates='quests',
+        cascade='save-update, merge, refresh-expire, expunge'
+    )
+    
+    # Backrefs (defined in User model)
+    creator = relationship("User", foreign_keys=[creator_id], back_populates="created_quests")
+    approved_by = relationship("User", foreign_keys=[approved_by_id])
+    bookmarked_by = relationship(
+        'User',
+        secondary='user_quests',
+        back_populates='bookmarks',
+        lazy='dynamic',
+        order_by='desc(user_quests.c.bookmarked_at)'
+    )
+    
+    # Difficulty level mappings
+    DIFFICULTY_LEVELS = {
+        'beginner': 3.0,
+        'intermediate': 6.0,
+        'advanced': 8.0,
+        'expert': 10.0
+    }
+    
+    def __init__(self, **kwargs):
+        """
+        Initialize a new quest.
+        
+        Args:
+            **kwargs: Quest attributes
+        """
+        super().__init__(**kwargs)
+        # Ensure URL is normalized
+        if hasattr(self, 'url'):
+            self.url = self.url.strip()
+    
+    def to_dict(self, include_relationships: bool = True) -> Dict[str, Any]:
+        """
+        Convert quest object to dictionary.
+        
+        Args:
+            include_relationships: Whether to include related objects
+            
+        Returns:
+            Dictionary representation of the quest with ISO-formatted datetime strings
+        """
+        data = {
+            'id': self.id,
+            'title': self.title,
+            'description': self.description,
+            'source': self.source,
+            'url': self.url,
+            'difficulty': self.difficulty,
+            'difficulty_level': self.get_difficulty_level(),
+            'reward': self.reward,
+            'region': self.region,
+            'is_approved': self.is_approved,
+            'posted_date': self.posted_date.isoformat() if self.posted_date else None,
+            'approved_at': self.approved_at.isoformat() if self.approved_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+        
+        if include_relationships:
+            data.update({
+                'creator': self.creator.to_dict() if self.creator else None,
+                'approved_by': self.approved_by.to_dict() if self.approved_by else None,
+                'tags': [tag.to_dict() for tag in self.tags],
+                'bookmark_count': self.bookmarked_by.count() if hasattr(self, 'bookmarked_by') else 0
+            })
+            
+        return data
+    
+    def approve(self, user_id: int) -> None:
+        """
+        Approve this quest.
+        
+        Args:
+            user_id: ID of the user approving the quest
+        """
+        self.is_approved = True
+        self.approved_by_id = user_id
+        self.approved_at = datetime.utcnow()
+        self.save()
+    
+    def get_difficulty_level(self) -> str:
+        """
+        Get the human-readable difficulty level.
+        
+        Returns:
+            str: The difficulty level (e.g., 'Beginner', 'Intermediate')
+        """
+        if self.difficulty < 4.0:
+            return 'Beginner'
+        elif self.difficulty < 7.0:
+            return 'Intermediate'
+        elif self.difficulty < 9.0:
+            return 'Advanced'
+        return 'Expert'
+    
+    def is_expired(self, days: int = 30) -> bool:
+        """
+        Check if the quest is older than the specified number of days.
+        
+        Args:
+            days: Number of days after which a quest is considered expired
+            
+        Returns:
+            bool: True if the quest is older than the specified days
+        """
+        if not self.posted_date:
+            return False
+        return (datetime.utcnow() - self.posted_date).days > days
+    
+    def add_tag(self, tag: Union['Tag', str]) -> None:
+        """
+        Add a tag to this quest.
+        
+        Args:
+            tag: Tag object or tag name to add
+        """
+        if isinstance(tag, str):
+            tag = Tag.get_or_create(tag)
+            
+        if tag not in self.tags:
+            self.tags.append(tag)
+            self.save()
+    
+    def remove_tag(self, tag: Union['Tag', str]) -> None:
+        """
+        Remove a tag from this quest.
+        
+        Args:
+            tag: Tag object or tag name to remove
+        """
+        if isinstance(tag, str):
+            tag = Tag.get_by_name(tag)
+            
+        if tag and tag in self.tags:
+            self.tags.remove(tag)
+            self.save()
+    
+    @classmethod
+    def get_by_difficulty(cls, level: str) -> 'Query[Quest]':
+        """
+        Get quests by difficulty level.
+        
+        Args:
+            level: Difficulty level ('beginner', 'intermediate', 'advanced', 'expert')
+            
+        Returns:
+            Query: SQLAlchemy query for quests with the specified difficulty
+        """
+        level = level.lower()
+        if level not in cls.DIFFICULTY_LEVELS:
+            level = 'intermediate'
+            
+        target_difficulty = cls.DIFFICULTY_LEVELS[level]
+        return cls.query.filter(
+            (cls.difficulty >= target_difficulty - 1.5) & 
+            (cls.difficulty <= target_difficulty + 1.5)
+        )
+
+
+# Tag model is now in tag.py
+
+
+# Maintain the original Quest dataclass for backward compatibility
+@dataclass
+class QuestDataclass:
+    """Legacy dataclass for Quest model."""
     id: str
     title: str
     description: str
     source: str
     url: str
     posted_date: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    
-    # Optional fields with defaults
     difficulty: float = 5.0
     reward: str = "Not specified"
     region: str = "Unknown"
@@ -44,159 +254,8 @@ class Quest:
             
         # Ensure datetime objects are timezone-aware
         if hasattr(self, 'posted_date') and self.posted_date is not None and self.posted_date.tzinfo is None:
-            object.__setattr__(self, 'posted_date', self.posted_date.replace(tzinfo=timezone.utc))
-            
-        if hasattr(self, 'created_at') and self.created_at is not None and self.created_at.tzinfo is None:
-            object.__setattr__(self, 'created_at', self.created_at.replace(tzinfo=timezone.utc))
-            
-        if hasattr(self, 'updated_at') and self.updated_at is not None and self.updated_at.tzinfo is None:
-            object.__setattr__(self, 'updated_at', self.updated_at.replace(tzinfo=timezone.utc))
-            
-        if hasattr(self, 'approved_at') and self.approved_at is not None and self.approved_at.tzinfo is None:
-            object.__setattr__(self, 'approved_at', self.approved_at.replace(tzinfo=timezone.utc))
-    
-    # Class constants
-    DIFFICULTY_LEVELS: ClassVar[Dict[str, float]] = {
-        'Beginner': 3.0,
-        'Intermediate': 6.0,
-        'Advanced': 8.0,
-        'Expert': 10.0
-    }
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert quest to dictionary.
-        
-        Returns:
-            Dict containing quest data with ISO-formatted datetime strings.
-        """
-        result = {}
-        
-        # Get all field names from the dataclass
-        for field in fields(self):
-            value = getattr(self, field.name)
-            
-            # Convert datetime objects to ISO format strings
-            if isinstance(value, datetime):
-                result[field.name] = value.isoformat()
-            # Handle other serialization if needed
-            else:
-                result[field.name] = value
-        
-        return result
-    
-    @classmethod
-    def from_dict(cls: Type[T], data: Dict[str, Any]) -> T:
-        """Create a Quest from a dictionary.
-        
-        Args:
-            data: Dictionary containing quest data
-            
-        Returns:
-            A new Quest instance
-            
-        Raises:
-            ValueError: If required fields are missing
-        """
-        # Make a copy to avoid modifying the input
-        data = data.copy()
-        
-        # Handle datetime conversions
-        datetime_fields = ['posted_date', 'created_at', 'updated_at', 'approved_at']
-        for field in datetime_fields:
-            if field in data and data[field] is not None:
-                if isinstance(data[field], str):
-                    try:
-                        # Handle different datetime string formats
-                        dt_str = data[field]
-                        if dt_str.endswith('Z'):
-                            dt_str = dt_str[:-1] + '+00:00'
-                        data[field] = datetime.fromisoformat(dt_str).astimezone(timezone.utc)
-                    except (ValueError, TypeError) as e:
-                        raise ValueError(f"Invalid datetime format for field '{field}': {data[field]}") from e
-        
-        # Get field names from the dataclass
-        field_names = {f.name for f in fields(cls)}
-        
-        # Filter out any extra fields that aren't in the dataclass
-        filtered_data = {k: v for k, v in data.items() if k in field_names}
-        
-        return cls(**filtered_data)
-    
-    def update(self, **kwargs) -> None:
-        """Update quest fields.
-        
-        Args:
-            **kwargs: Field names and values to update
-        """
-        for key, value in kwargs.items():
-            if hasattr(self, key) and not key.startswith('_'):
-                setattr(self, key, value)
-        self.updated_at = datetime.now(timezone.utc)
-    
-    def add_tag(self, tag: str) -> bool:
-        """Add a tag to the quest if it doesn't already exist.
-        
-        Args:
-            tag: The tag to add
-            
-        Returns:
-            bool: True if tag was added, False if it already existed
-        """
-        if not tag or not isinstance(tag, str):
-            return False
-            
-        tag = tag.strip().lower()
-        if tag and tag not in self.tags:
-            self.tags.append(tag)
-            self.updated_at = datetime.now(timezone.utc)
-            return True
-        return False
-    
-    def remove_tag(self, tag: str) -> bool:
-        """Remove a tag from the quest.
-        
-        Args:
-            tag: The tag to remove
-            
-        Returns:
-            bool: True if tag was removed, False if it didn't exist
-        """
-        if tag in self.tags:
-            self.tags.remove(tag)
-            self.updated_at = datetime.now(timezone.utc)
-            return True
-        return False
-    
-    def get_difficulty_level(self) -> str:
-        """Get a human-readable difficulty level.
-        
-        Returns:
-            str: One of 'Beginner', 'Intermediate', 'Advanced', or 'Expert'
-        """
-        if self.difficulty <= self.DIFFICULTY_LEVELS['Beginner']:
-            return 'Beginner'
-        elif self.difficulty <= self.DIFFICULTY_LEVELS['Intermediate']:
-            return 'Intermediate'
-        elif self.difficulty <= self.DIFFICULTY_LEVELS['Advanced']:
-            return 'Advanced'
-        return 'Expert'
-    
-    def is_expired(self, days: int = 30) -> bool:
-        """Check if the quest is older than the specified number of days.
-        
-        Args:
-            days: Number of days after which a quest is considered expired
-            
-        Returns:
-            bool: True if the quest is older than the specified days
-        """
-        if not isinstance(self.posted_date, datetime):
-            return False
-            
-        now = datetime.now(timezone.utc)
-        if self.posted_date.tzinfo is None:
-            posted_date = self.posted_date.replace(tzinfo=timezone.utc)
-        else:
             posted_date = self.posted_date
             
-        return (now - posted_date) > timedelta(days=days)
+        return (datetime.now(timezone.utc) - posted_date).days > days
+
+# Add any model-level functions or utilities here
