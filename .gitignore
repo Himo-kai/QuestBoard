@@ -18,6 +18,42 @@ var/
 wheels/
 *.egg-info/
 .installed.cfg
+
+# Database
+*.db
+*.sqlite3
+instance/
+!instance/README.md
+
+# Migrations
+# Note: The migrations/ directory should be tracked, but not the .pyc files
+migrations/versions/*.pyc
+migrations/__pycache__/
+
+# Environment variables
+.env
+.venv
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Local development
+.DS_Store
+Thumbs.db
 *.egg
 MANIFEST
 
